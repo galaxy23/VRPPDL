@@ -1,0 +1,16 @@
+# Lines starting with '#' are considered comments.
+# Ignore temp files
+*.*~
+*.swp
+# Ignore objects and archives.
+*.obj
+*.pdb
+*.exe
+*.ncb
+*.opt
+*.pfi
+*.dep
+*.ilk
+*.idb
+*.sbr
+*.plg
