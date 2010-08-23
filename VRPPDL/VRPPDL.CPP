@@ -123,7 +123,7 @@ void readMatching(char *file) {
 		printf("ERROR: Can not open input file %s!\n\n", file);
 		exit(1);
 	}
-	
+	   
 	nVertexP = 0;
 	nodeSize = 0;
 	node[nodeSize++] = make_pair(0, 0);
