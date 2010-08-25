@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdio.h>
 #include <string.h>
 #include <math.h>
 #include <stdlib.h>
@@ -6,6 +7,7 @@
 #include <utility>
 #include <algorithm>
 #include <functional>
+
 using namespace std;
 
 // Change any of these parameters to match your needs
@@ -17,6 +19,7 @@ const int MAX_OUTER_ITER = 50;      // max. iteration
 const int MAX_INNER_ITER = 15;      // max. no. of no update
 const int INF = 0x3f3f3f3f;         // max. integer
 const int MAX_VEHICLE = 2;          // max. no. of vehicles
+const int MAX_CAPACITY = 100;       // max. no. of capacity
 
 char instance[109];                        // the name of the data instance
 int size;                                  // no. of the cities (excluding the depot)
@@ -63,6 +66,7 @@ struct Genotype
 Genotype population[POP_SIZE + 2];      // the current population
 Genotype newPopulation[POP_SIZE + 2];   // the new population
 Genotype src[MAX_VEHICLE];              // the starting solution
+
 
 void readCoordinate(char *file)
 {
@@ -160,7 +164,8 @@ void readMatching(char *file)
 			other[x] = y;
 			other[y] = x;
 			vertexP[nVertexP++] = x;
-			demand[nVertexP-1] = dem;
+			demand[x] = dem;
+			demand[y] = -dem;
 			isVertexP[x] = true;
 			isVertexP[y] = false;
 			node[nodeSize] = make_pair(x, y);
@@ -199,11 +204,23 @@ void readMatching(char *file)
 int calcFitness(const Genotype &gt)
 {
 	int i, fitness = 0;
-	for (i = 1; i < gt.num; ++i)
+	for (i = 1; i < gt.num * 2; ++i)
 	{
 		fitness += dis[gt.gene[i - 1]][gt.gene[i]];
 	}
 	fitness += dis[0][gt.gene[0]] + dis[gt.gene[gt.num - 1]][0];
+	return -fitness;
+}
+
+// to compute the total fitness of the genotypes.
+int calcTotalFitness(Genotype gt[])
+{
+	int i, fitness = 0;
+	for (i = 0; i < MAX_VEHICLE; ++i)
+	{
+		gt[i].fitness = calcFitness(gt[i]);
+		fitness += -gt[i].fitness;
+	}
 	return -fitness;
 }
 
@@ -255,13 +272,78 @@ void getStartingTour(char* file)
 	}
 }
 
+bool checkCapacity(Genotype gt)
+{
+	int i;
+	int curCap = 0;
+
+	for (i = 0; i < gt.num * 2; ++i)
+	{
+		curCap += demand[gt.gene[i]];
+		if (curCap > MAX_CAPACITY)
+		{
+			break;
+		}
+	}
+
+	if (i < gt.num * 2)
+	{
+		return false;
+	}
+
+	return true;
+}
+
+bool checkCapacity(int gt[], int size)
+{
+	int i;
+	int curCap = 0;
+	
+	for (i = 0; i < size; ++i)
+	{
+		curCap += demand[gt[i]];
+		if (curCap > MAX_CAPACITY)
+		{
+			break;
+		}
+	}
+	
+	if (i < size)
+	{
+		return false;
+	}
+	
+	return true;
+}
+
+bool checkAllCapacity(Genotype gt[])
+{
+	int i;
+	
+	for (i = 0; i < MAX_VEHICLE; ++i)
+	{
+		if (checkCapacity(gt[i]) == false)
+		{
+			break;
+		}	
+	}
+
+	if (i < MAX_VEHICLE)
+	{
+		return false;
+	}
+
+	return true;
+}
+
 // relocate-block operator O(N^2)
 bool relocateBlock(Genotype& gt)
 {
 	int pos[MAXN], vt[MAXN], T2[MAXN];
 	int i, j, n, m = 0, length, fitness;
 	int x, xx, xl, xr, bestPos, bestFitness = gt.fitness;
-	
+	Genotype temp;
+
 	vt[0] = 0, vt[gt.num * 2 + 1] = size + 1;
 	memcpy(vt + 1, gt.gene, gt.num * 2 * sizeof(int));
 	for (i = 0; i <= gt.num * 2 + 1; ++i)
@@ -294,7 +376,15 @@ bool relocateBlock(Genotype& gt)
 					  + dis[T2[j]][vt[xl]]
 					  + dis[vt[xr]][T2[j + 1]]
 					  - dis[T2[j]][T2[j + 1]]);
-			if (fitness > bestFitness)
+			m = 0;
+			memcpy(temp.gene + m, T2 + 1, j * sizeof(int));
+			m += j;
+			memcpy(temp.gene + m, vt + xl, (xr - xl + 1) * sizeof(int));
+			m += (xr - xl + 1);
+			memcpy(temp.gene + m, T2 + j + 1, (n - 2 - j) * sizeof(int));
+			temp.num = gt.num;
+
+			if (fitness > bestFitness && checkCapacity(temp))
 			{
 				bestFitness = fitness;
 				xx = x;
@@ -319,6 +409,7 @@ bool relocateBlock(Genotype& gt)
 		n += gt.num * 2 - xr;
 		T2[n++] = size + 1;
 		
+		m = 0;
 		gt.fitness = bestFitness;
 		memcpy(gt.gene + m, T2 + 1, bestPos * sizeof(int));
 		m += bestPos;
@@ -329,6 +420,116 @@ bool relocateBlock(Genotype& gt)
 		return true;
 	}
 	return false;
+}
+
+// relocate-block operator on different trees O(N^2)
+bool relocateBlockOnDiffTrees(Genotype gt[])
+{
+	int pos[MAXN], vt[MAXN], T2[MAXN];
+	int i, j, n, m = 0, length, fitness;
+	int x, xx, xl, xr, bestPos, bestFitness = calcTotalFitness(gt);
+
+	vt[0] = 0, vt[gt.num * 2 + 1] = size + 1;
+	memcpy(vt + 1, gt.gene, gt.num * 2 * sizeof(int));
+	for (i = 0; i <= gt.num * 2 + 1; ++i)
+	{
+		pos[vt[i]] = i;
+	}
+	for (i = 0; i < gt.num; ++i)
+	{
+		x = gt.gene[i];
+		if (!isVertexP[x])
+		{
+			continue;
+		}
+		xl = pos[x], xr = pos[other[x]];
+		n = 0;
+		T2[0] = 0;
+		++n;
+		memcpy(T2 + n, vt + 1, (xl - 1) * sizeof(int));
+		n += xl - 1;
+		memcpy(T2 + n, vt + xr + 1, (gt.num * 2 - xr) * sizeof(int));
+		n += gt.num * 2 - xr;
+		T2[n++] = size + 1;
+		length = -gt.fitness
+			- dis[vt[xl - 1]][vt[xl]]
+			- dis[vt[xr]][vt[xr + 1]]
+			+ dis[vt[xl - 1]][vt[xr + 1]];
+		for (j = 0; j < n - 1; ++j)
+		{
+			fitness = -(length
+				+ dis[T2[j]][vt[xl]]
+				+ dis[vt[xr]][T2[j + 1]]
+				- dis[T2[j]][T2[j + 1]]);
+			if (fitness > bestFitness)
+			{
+				bestFitness = fitness;
+				xx = x;
+				bestPos = j;
+			}
+		}
+	}
+
+	if (bestFitness < gt.fitness)
+	{
+		printf("relocateBlock(Genotype& gt) is wrong\n");
+		exit(1);
+	}
+
+	if (bestFitness > gt.fitness)
+	{
+		xl = pos[xx], xr = pos[other[xx]];
+		n = 0;
+		T2[0] = 0;
+		++n;
+		memcpy(T2 + n, vt + 1, (xl - 1) * sizeof(int));
+		n += xl - 1;
+		memcpy(T2 + n, vt + xr + 1, (gt.num * 2 - xr) * sizeof(int));
+		n += gt.num * 2 - xr;
+		T2[n++] = size + 1;
+		
+		gt.fitness = bestFitness;
+		memcpy(gt.gene + m, T2 + 1, bestPos * sizeof(int));
+		m += bestPos;
+		memcpy(gt.gene + m, vt + xl, (xr - xl + 1) * sizeof(int));
+		m += (xr - xl + 1);
+		memcpy(gt.gene + m, T2 + bestPos + 1, (n - 2 - bestPos) * sizeof(int));
+		m += (n - 2 - bestPos);
+		return true;
+	}
+
+	return false;
+}
+
+void printAnswer(Genotype gt[])
+{
+	int i;
+	int j;
+	int curCap;
+
+	for (i = 0; i < MAX_VEHICLE; ++i)
+	{
+		curCap = 0;
+		printf("Vehicle %d\n", i);
+		printf("No. 0+\t\tCapcity: 0\n");
+		for (j = 0; j < gt[i].num * 2; ++j)
+		{
+			curCap += demand[gt[i].gene[j]];
+			if ( isVertexP[gt[i].gene[j]])
+			{
+				printf("No. %d+\t\tCapcity: %d\n", gt[i].gene[j], curCap);
+			}
+			else
+			{
+				printf("No. %d-\t\tCapcity: %d\n", other[gt[i].gene[j]], curCap);
+			}
+		}
+		printf("No. 0-\t\tCapcity: 0\n");
+		printf("\n");
+	}
+
+	printf("Total Cost: %d\n", -calcTotalFitness(gt));
+	return;
 }
 
 int main(int argc, char *argv[])
@@ -346,6 +547,11 @@ int main(int argc, char *argv[])
 	readMatching(argv[2]);
 
 	getStartingTour(argc == 4 ? argv[3] : NULL);
+// 	printAnswer(src);
+// 	if (checkAllCapacity(src) == true)
+// 	{
+// 		printf("True\n");
+// 	}
 
 	best = 0;
 
@@ -353,11 +559,13 @@ int main(int argc, char *argv[])
 	{
 		relocateBlock(src[i]);
 	}
-	for (k = 0; k < MAX_VEHICLE; ++k)
-	{
-		src[k].fitness = calcFitness(src[k]);
-		best += -src[k].fitness;
-	}
+
+// 	if (checkAllCapacity(src) == true)
+// 	{
+// 		printf("True\n");
+// 	}
+	printAnswer(src);
+	best = -calcTotalFitness(src);
 
 	//printf("Problem Name: %s	Dimension: %d	StartingTourCost: %d", instance, size + 1, startingTourCost);
 	//printf("\nTime: %.2f seconds. Cost = %d\n", (clock() - startTime) * 1.0 / (CLOCKS_PER_SEC), best);
