@@ -434,8 +434,8 @@ bool relocateBlockOnDiffTrees(Genotype gt[])
 	int xrFirst, xrSecond;
 	int bestPos;
 	int bestFirst, bestSecond;
-	int originFitness = calcTotalFitness(gt);
-	int bestFitness = originFitness;
+	int originFitness, curFitness;
+	int bestFitness = 0;
 	int test;
 
 	Genotype tempFirst, tempSecond;
@@ -467,7 +467,7 @@ bool relocateBlockOnDiffTrees(Genotype gt[])
 			nFirst += gt[i].num * 2 - xrFirst;
 			T2[nFirst++] = size + 1;
 			test = calcFitness(gt[i]);
-			lengthFirst = -gt[i].fitness
+			lengthFirst = - gt[i].fitness
 						  - dis[vtFirst[xlFirst - 1]][vtFirst[xlFirst]]
 						  - dis[vtFirst[xrFirst]][vtFirst[xrFirst + 1]]
 						  + dis[vtFirst[xlFirst - 1]][vtFirst[xrFirst + 1]];
@@ -485,7 +485,7 @@ bool relocateBlockOnDiffTrees(Genotype gt[])
 				}
 				for (k = 0; k < gt[j].num * 2 + 1; ++k)
 				{
-					lengthSecond = -gt[j].fitness
+					lengthSecond = - gt[j].fitness
 								   - dis[vtSecond[k]][vtSecond[k + 1]]
 								   + dis[vtSecond[k]][vtFirst[xlFirst]]
 								   + dis[vtFirst[xrFirst]][vtSecond[k + 1]];
@@ -512,10 +512,11 @@ bool relocateBlockOnDiffTrees(Genotype gt[])
 						printf("relocateBlockOnDiffTrees fitness is wrong\n");
  						exit(1);
 					}
-
-					if (fitness > bestFitness)
+					originFitness = calcFitness(gt[i]) + calcFitness(gt[j]);
+					curFitness = fitness - originFitness;
+					if (curFitness > bestFitness)
 					{
-						bestFitness = fitness;
+						bestFitness = curFitness;
 						tempGeno[0] = tempFirst;
 						tempGeno[1] = tempSecond;
 						test = calcTotalFitness(tempGeno);
@@ -527,13 +528,13 @@ bool relocateBlockOnDiffTrees(Genotype gt[])
 		}
 	}
 
-	if (bestFitness < originFitness)
+	if (bestFitness < 0)
 	{
 		printf("relocateBlock(Genotype& gt) is wrong\n");
 		exit(1);
 	}
 
-	if (bestFitness > originFitness)
+	if (bestFitness > 0)
 	{
 		gt[bestFirst] = tempGeno[0];
 		gt[bestSecond] = tempGeno[1];
@@ -544,7 +545,7 @@ bool relocateBlockOnDiffTrees(Genotype gt[])
 
 // block-exchange operator  O(N^2)
 bool blockExchange(Genotype& gt) {
-	static int vt[MAXN], pos[MAXN];
+	int vt[MAXN], pos[MAXN];
 	int i, j, n = 0, xx, yy, bestFitness = gt.fitness;
 	int newL, x, y, xl, xr, yl, yr;
 	
@@ -563,7 +564,7 @@ bool blockExchange(Genotype& gt) {
 		}
 		for (j = i + 1; j < gt.num * 2; ++j)
 		{
-			y = vertexP[j];
+			y = gt.gene[j];
 			if (!isVertexP[y])
 			{
 				continue;
@@ -639,6 +640,132 @@ bool blockExchange(Genotype& gt) {
 	return false;
 }
 
+// block-exchange operator  O(N^2)
+bool blockExchangeOnDiffTrees(Genotype gt[]) {
+	int vtFirst[MAXN], vtSecond[MAXN];
+	int posFirst[MAXN], posSecond[MAXN];
+	int i, j, k, h, n = 0, xx, yy;
+	int newL, x, y;
+	int xlFirst, xrFirst, xlSecond, xrSecond;
+	int xl, xr, yl, yr;
+	int originFitness, curFitness;
+	int bestFitness = 0;
+	int bestI, bestJ;
+
+	Genotype tempFirst, tempSecond;
+	Genotype tempGeno[2];
+
+	for (i = 0; i < MAX_VEHICLE; ++i)
+	{
+		vtFirst[0] = 0, vtFirst[gt[i].num * 2 + 1] = size + 1;
+		memcpy(vtFirst + 1, gt[i].gene, gt[i].num * 2 * sizeof(int));
+		for (k = 0; k <= gt[i].num * 2 + 1; ++k)
+		{
+			posFirst[vtFirst[k]] = k;
+		}
+		for (h = 0; h < gt[i].num * 2; ++h)
+		{
+			x = gt[i].gene[h];
+			if (!isVertexP[x])
+			{
+				continue;
+			}
+			for (j = 0; j < MAX_VEHICLE; ++j)
+			{
+				if (i == j)
+				{
+					continue;
+				}
+				vtSecond[0] = 0, vtSecond[gt[j].num * 2 + 1] = size + 1;
+				memcpy(vtSecond + 1, gt[j].gene, gt[j].num * 2 * sizeof(int));
+				for (k = 0; k <= gt[j].num * 2 + 1; ++k)
+				{
+					posSecond[vtSecond[k]] = k;
+				}
+				for (k = 0; k < gt[j].num * 2; ++k)
+				{
+					y = gt[j].gene[k];
+					if (!isVertexP[y])
+					{
+						continue;
+					}
+					yl = posSecond[y];
+					yr = posSecond[other[y]];
+					xl = posFirst[x];
+					xr = posFirst[other[x]];
+					originFitness = calcFitness(gt[i]) + calcFitness(gt[j]);
+					newL = - originFitness
+						   - dis[vtFirst[xl - 1]][vtFirst[xl]]
+						   + dis[vtFirst[xl - 1]][vtSecond[yl]]
+						   - dis[vtSecond[yr]][vtSecond[yr + 1]]
+						   + dis[vtFirst[xr]][vtSecond[yr + 1]]
+						   - dis[vtFirst[xr]][vtFirst[xr + 1]]
+						   + dis[vtSecond[yr]][vtFirst[xr + 1]]
+						   - dis[vtSecond[yl - 1]][vtSecond[yl]]
+						   + dis[vtSecond[yl - 1]][vtFirst[xl]];
+					curFitness = -newL - originFitness;
+					if (curFitness > bestFitness)
+					{
+						bestFitness = curFitness;
+						bestI = i;
+						bestJ = j;
+						xx = x;
+						yy = y;
+					}
+				}
+			}
+		}
+	}
+	if (bestFitness < 0)
+	{
+		printf("blockExchange(Genotype& gt) is wrong\n");
+		exit(1);
+	}
+	if (bestFitness > 0)
+	{
+		vtFirst[0] = 0, vtFirst[gt[bestI].num * 2 + 1] = size + 1;
+		memcpy(vtFirst + 1, gt[bestI].gene, gt[bestI].num * 2 * sizeof(int));
+		vtSecond[0] = 0, vtSecond[gt[bestJ].num * 2 + 1] = size + 1;
+		memcpy(vtSecond + 1, gt[bestJ].gene, gt[bestJ].num * 2 * sizeof(int));
+		for (k = 0; k <= gt[i].num * 2 + 1; ++k)
+		{
+			posFirst[vtFirst[k]] = k;
+		}
+		for (k = 0; k <= gt[j].num * 2 + 1; ++k)
+		{
+			posSecond[vtSecond[k]] = k;
+		}
+		xl = posFirst[xx];
+		xr = posFirst[other[xx]];
+		yl = posSecond[yy];
+		yr = posSecond[other[yy]];
+
+		n = 0;
+		memcpy(tempGeno[0].gene + n, vtFirst + 1, (xl - 1) * sizeof(int));
+		n += xl - 1;
+		memcpy(tempGeno[0].gene + n, vtSecond + yl, (yr - yl + 1) * sizeof(int));
+		n += yr - yl + 1;
+		memcpy(tempGeno[0].gene + n, vtFirst + xr + 1, (gt[bestI].num * 2 - xr) * sizeof(int));
+		n += gt[bestI].num * 2 - xr;
+		tempGeno[0].num = (n + 1) / 2;
+		tempGeno[0].fitness = calcFitness(tempGeno[0]);
+
+		n = 0;
+		memcpy(tempGeno[1].gene + n, vtSecond + 1, (yl - 1) * sizeof(int));
+		n += yl - 1;
+		memcpy(tempGeno[1].gene + n, vtFirst + xl, (xr - xl + 1) * sizeof(int));
+		n += xr - xl + 1;
+		memcpy(tempGeno[1].gene + n, vtSecond + yr + 1, (gt[bestJ].num * 2 - yr) * sizeof(int));
+		n += gt[bestJ].num * 2 - yr;
+		tempGeno[1].num = (n + 1) / 2;
+		tempGeno[1].fitness = calcFitness(tempGeno[1]);
+		gt[bestI] = tempGeno[0];
+		gt[bestJ] = tempGeno[1];
+		return true;
+	}
+	return false;
+}
+
 void printAnswer(Genotype gt[])
 {
 	int i;
@@ -686,7 +813,7 @@ int main(int argc, char *argv[])
 
 	getStartingTour(argc == 4 ? argv[3] : NULL);
 	printAnswer(src);
-// 	printAnswer(src);
+
 // 	if (checkAllCapacity(src) == true)
 // 	{
 // 		printf("True\n");
@@ -698,11 +825,11 @@ int main(int argc, char *argv[])
 // 	{
 // 		relocateBlock(src[i]);
 // 	}
-
-	for (i = 0; i < MAX_VEHICLE; ++i)
-	{
-		blockExchange(src[i]);
-	}
+// 
+// 	for (i = 0; i < MAX_VEHICLE; ++i)
+// 	{
+// 		blockExchange(src[i]);
+// 	}
 
 // 	relocateBlockOnDiffTrees(src);
 
@@ -710,6 +837,8 @@ int main(int argc, char *argv[])
 // 	{
 // 		printf("True\n");
 // 	}
+
+// 	blockExchangeOnDiffTrees(src);
 
 	printAnswer(src);
 	best = -calcTotalFitness(src);

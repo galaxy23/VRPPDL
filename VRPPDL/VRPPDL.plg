@@ -6,18 +6,18 @@
 --------------------Configuration: VRPPDL - Win32 Debug--------------------
 </h3>
 <h3>Command Lines</h3>
-Creating temporary file "C:\DOCUME~1\lenovo\LOCALS~1\Temp\RSP73.tmp" with contents
+Creating temporary file "C:\DOCUME~1\lenovo\LOCALS~1\Temp\RSP205.tmp" with contents
 [
 /nologo /MLd /W3 /Gm /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /Fp"Debug/VRPPDL.pch" /YX /Fo"Debug/" /Fd"Debug/" /FD /GZ /c 
 "D:\MyProjects\VRPPDL\VRPPDL\VRPPDL.CPP"
 ]
-Creating command line "cl.exe @C:\DOCUME~1\lenovo\LOCALS~1\Temp\RSP73.tmp" 
-Creating temporary file "C:\DOCUME~1\lenovo\LOCALS~1\Temp\RSP74.tmp" with contents
+Creating command line "cl.exe @C:\DOCUME~1\lenovo\LOCALS~1\Temp\RSP205.tmp" 
+Creating temporary file "C:\DOCUME~1\lenovo\LOCALS~1\Temp\RSP206.tmp" with contents
 [
 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:console /incremental:yes /pdb:"Debug/VRPPDL.pdb" /debug /machine:I386 /out:"Debug/VRPPDL.exe" /pdbtype:sept 
 .\Debug\VRPPDL.OBJ
 ]
-Creating command line "link.exe @C:\DOCUME~1\lenovo\LOCALS~1\Temp\RSP74.tmp"
+Creating command line "link.exe @C:\DOCUME~1\lenovo\LOCALS~1\Temp\RSP206.tmp"
 <h3>Output Window</h3>
 Compiling...
 VRPPDL.CPP
@@ -35,8 +35,12 @@ D:\MyProjects\VRPPDL\VRPPDL\VRPPDL.CPP(432) : warning C4101: 'y' : unreferenced 
 D:\MyProjects\VRPPDL\VRPPDL\VRPPDL.CPP(434) : warning C4101: 'xrSecond' : unreferenced local variable
 D:\MyProjects\VRPPDL\VRPPDL\VRPPDL.CPP(430) : warning C4101: 'n' : unreferenced local variable
 D:\MyProjects\VRPPDL\VRPPDL\VRPPDL.CPP(432) : warning C4101: 'xx' : unreferenced local variable
-D:\MyProjects\VRPPDL\VRPPDL\VRPPDL.CPP(683) : warning C4101: 'mem' : unreferenced local variable
-D:\MyProjects\VRPPDL\VRPPDL\VRPPDL.CPP(683) : warning C4101: 'j' : unreferenced local variable
+D:\MyProjects\VRPPDL\VRPPDL\VRPPDL.CPP(649) : warning C4101: 'xlSecond' : unreferenced local variable
+D:\MyProjects\VRPPDL\VRPPDL\VRPPDL.CPP(649) : warning C4101: 'xrSecond' : unreferenced local variable
+D:\MyProjects\VRPPDL\VRPPDL\VRPPDL.CPP(649) : warning C4101: 'xlFirst' : unreferenced local variable
+D:\MyProjects\VRPPDL\VRPPDL\VRPPDL.CPP(649) : warning C4101: 'xrFirst' : unreferenced local variable
+D:\MyProjects\VRPPDL\VRPPDL\VRPPDL.CPP(810) : warning C4101: 'mem' : unreferenced local variable
+D:\MyProjects\VRPPDL\VRPPDL\VRPPDL.CPP(810) : warning C4101: 'j' : unreferenced local variable
 Linking...
 
 
