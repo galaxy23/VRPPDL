@@ -208,7 +208,7 @@ int calcFitness(const Genotype &gt)
 	{
 		fitness += dis[gt.gene[i - 1]][gt.gene[i]];
 	}
-	fitness += dis[0][gt.gene[0]] + dis[gt.gene[gt.num - 1]][0];
+	fitness += dis[0][gt.gene[0]] + dis[gt.gene[gt.num * 2 - 1]][0];
 	return -fitness;
 }
 
@@ -350,7 +350,7 @@ bool relocateBlock(Genotype& gt)
 	{
 		pos[vt[i]] = i;
 	}
-	for (i = 0; i < gt.num; ++i)
+	for (i = 0; i < gt.num * 2; ++i)
 	{
 		x = gt.gene[i];
 		if (!isVertexP[x])
@@ -367,9 +367,9 @@ bool relocateBlock(Genotype& gt)
 		n += gt.num * 2 - xr;
 		T2[n++] = size + 1;
 		length = -gt.fitness
-			- dis[vt[xl - 1]][vt[xl]]
-			- dis[vt[xr]][vt[xr + 1]]
-			+ dis[vt[xl - 1]][vt[xr + 1]];
+			 	 - dis[vt[xl - 1]][vt[xl]]
+				 - dis[vt[xr]][vt[xr + 1]]
+				 + dis[vt[xl - 1]][vt[xr + 1]];
 		for (j = 0; j < n - 1; ++j)
 		{
 			fitness = -(length
@@ -425,79 +425,196 @@ bool relocateBlock(Genotype& gt)
 // relocate-block operator on different trees O(N^2)
 bool relocateBlockOnDiffTrees(Genotype gt[])
 {
-	int pos[MAXN], vt[MAXN], T2[MAXN];
-	int i, j, n, m = 0, length, fitness;
-	int x, xx, xl, xr, bestPos, bestFitness = calcTotalFitness(gt);
+	int posFirst[MAXN], posSecond[MAXN];
+	int vtFirst[MAXN], vtSecond[MAXN], T2[MAXN], T3[MAXN];
+	int h, i, j, k, nFirst, nSecond, p, n, m = 0;
+	int lengthFirst, lengthSecond, fitness;
+	int x, xx, y, yy;
+	int xlFirst, xlSecond;
+	int xrFirst, xrSecond;
+	int bestPos;
+	int bestFirst, bestSecond;
+	int originFitness = calcTotalFitness(gt);
+	int bestFitness = originFitness;
+	int test;
 
+	Genotype tempFirst, tempSecond;
+	Genotype tempGeno[2];
+
+	for (i = 0; i < MAX_VEHICLE; ++i)
+	{
+		vtFirst[0] = 0, vtFirst[gt[i].num * 2 + 1] = size + 1;
+		memcpy(vtFirst + 1, gt[i].gene, gt[i].num * 2 * sizeof(int));
+		for (k = 0; k <= gt[i].num * 2 + 1; ++k)
+		{
+			posFirst[vtFirst[k]] = k;
+		}
+		for (h = 0; h < gt[i].num * 2; ++h)
+		{
+			x = gt[i].gene[h];
+			if (!isVertexP[x])
+			{
+				continue;
+			}
+			xlFirst = posFirst[x];
+			xrFirst = posFirst[other[x]];
+			nFirst = 0;
+			T2[0] = 0;
+			++nFirst;
+			memcpy(T2 + nFirst, vtFirst + 1, (xlFirst - 1) * sizeof(int));
+			nFirst += xlFirst - 1;
+			memcpy(T2 + nFirst, vtFirst + xrFirst + 1, (gt[i].num * 2 - xrFirst) * sizeof(int));
+			nFirst += gt[i].num * 2 - xrFirst;
+			T2[nFirst++] = size + 1;
+			test = calcFitness(gt[i]);
+			lengthFirst = -gt[i].fitness
+						  - dis[vtFirst[xlFirst - 1]][vtFirst[xlFirst]]
+						  - dis[vtFirst[xrFirst]][vtFirst[xrFirst + 1]]
+						  + dis[vtFirst[xlFirst - 1]][vtFirst[xrFirst + 1]];
+			for (j = 0; j < MAX_VEHICLE; ++j)
+			{
+				if (i == j)
+				{
+					continue;
+				}
+				vtSecond[0] = 0, vtSecond[gt[j].num * 2 + 1] = size + 1;
+				memcpy(vtSecond + 1, gt[j].gene, gt[j].num * 2 * sizeof(int));
+				for (k = 0; k <= gt[j].num * 2 + 1; ++k)
+				{
+					posSecond[vtSecond[k]] = k;
+				}
+				for (k = 0; k < gt[j].num * 2 + 1; ++k)
+				{
+					lengthSecond = -gt[j].fitness
+								   - dis[vtSecond[k]][vtSecond[k + 1]]
+								   + dis[vtSecond[k]][vtFirst[xlFirst]]
+								   + dis[vtFirst[xrFirst]][vtSecond[k + 1]];
+					fitness = - lengthFirst - lengthSecond;
+
+					m = 0;
+					memcpy(tempFirst.gene + m, vtFirst + 1, (xlFirst - 1) * sizeof(int));
+					m += xlFirst - 1;
+					memcpy(tempFirst.gene + m, vtFirst + xrFirst + 1, (gt[i].num * 2 - xrFirst ) * sizeof(int));
+					tempFirst.num = gt[i].num - (xrFirst - xlFirst + 1) / 2;
+					tempFirst.fitness = calcFitness(tempFirst);
+
+					m = 0;
+					memcpy(tempSecond.gene + m, vtSecond + 1, k * sizeof(int));
+					m += k;
+					memcpy(tempSecond.gene + m, vtFirst + xlFirst, (xrFirst - xlFirst + 1) * sizeof(int));
+					m += (xrFirst - xlFirst + 1);
+					memcpy(tempSecond.gene + m, vtSecond + k + 1, (gt[j].num * 2 - k) * sizeof(int));
+					tempSecond.num = gt[j].num + (xrFirst - xlFirst + 1) / 2;
+					tempSecond.fitness = calcFitness(tempSecond);
+
+					if (tempSecond.fitness + tempFirst.fitness != fitness)
+					{
+						printf("relocateBlockOnDiffTrees fitness is wrong\n");
+ 						exit(1);
+					}
+
+					if (fitness > bestFitness)
+					{
+						bestFitness = fitness;
+						tempGeno[0] = tempFirst;
+						tempGeno[1] = tempSecond;
+						test = calcTotalFitness(tempGeno);
+						bestFirst = i;
+						bestSecond = j;
+					}
+				}
+			}
+		}
+	}
+
+	if (bestFitness < originFitness)
+	{
+		printf("relocateBlock(Genotype& gt) is wrong\n");
+		exit(1);
+	}
+
+	if (bestFitness > originFitness)
+	{
+		gt[bestFirst] = tempGeno[0];
+		gt[bestSecond] = tempGeno[1];
+		return true;
+	}
+	return false;
+}
+
+// block-exchange operator  O(N^2)
+bool blockExchange(Genotype& gt) {
+	static int vt[MAXN], pos[MAXN];
+	int i, j, n = 0, xx, yy, bestFitness = gt.fitness;
+	int newL, x, y, xl, xr, yl, yr;
+	
 	vt[0] = 0, vt[gt.num * 2 + 1] = size + 1;
 	memcpy(vt + 1, gt.gene, gt.num * 2 * sizeof(int));
 	for (i = 0; i <= gt.num * 2 + 1; ++i)
 	{
 		pos[vt[i]] = i;
 	}
-	for (i = 0; i < gt.num; ++i)
-	{
-		x = gt.gene[i];
-		if (!isVertexP[x])
-		{
-			continue;
-		}
-		xl = pos[x], xr = pos[other[x]];
-		n = 0;
-		T2[0] = 0;
-		++n;
-		memcpy(T2 + n, vt + 1, (xl - 1) * sizeof(int));
-		n += xl - 1;
-		memcpy(T2 + n, vt + xr + 1, (gt.num * 2 - xr) * sizeof(int));
-		n += gt.num * 2 - xr;
-		T2[n++] = size + 1;
-		length = -gt.fitness
-			- dis[vt[xl - 1]][vt[xl]]
-			- dis[vt[xr]][vt[xr + 1]]
-			+ dis[vt[xl - 1]][vt[xr + 1]];
-		for (j = 0; j < n - 1; ++j)
-		{
-			fitness = -(length
-				+ dis[T2[j]][vt[xl]]
-				+ dis[vt[xr]][T2[j + 1]]
-				- dis[T2[j]][T2[j + 1]]);
-			if (fitness > bestFitness)
-			{
-				bestFitness = fitness;
+	for (i = 0; i < gt.num * 2; ++i) {
+		x = vertexP[i];
+		for (j = i + 1; j < nVertexP; ++j) {
+			y = vertexP[j];
+			yl = pos[y];
+			yr = pos[other[y]];	
+			xl = pos[x];
+			xr = pos[other[x]];
+			if ((xl < yl && yr < xr) ||
+				(yl < xl && xr < yr)) continue;
+			if (xl > yl) {
+				swap(xl, yl);
+				swap(xr, yr);
+			}
+			if (xr + 1 == yl) {
+				newL = -gt.fitness
+					- dis[vt[xl - 1]][vt[xl]]
+					+ dis[vt[xl - 1]][vt[yl]]
+					- dis[vt[yr]][vt[yr + 1]]
+					+ dis[vt[xr]][vt[yr + 1]]
+					- dis[vt[xr]][vt[yl]]
+					+ dis[vt[yr]][vt[xl]];
+			} else {
+				newL = -gt.fitness
+					- dis[vt[xl - 1]][vt[xl]]
+					+ dis[vt[xl - 1]][vt[yl]]
+					- dis[vt[yr]][vt[yr + 1]]
+					+ dis[vt[xr]][vt[yr + 1]]
+					- dis[vt[xr]][vt[xr + 1]]
+					+ dis[vt[yr]][vt[xr + 1]]
+					- dis[vt[yl - 1]][vt[yl]]
+					+ dis[vt[yl - 1]][vt[xl]];
+			}
+			if (-newL > bestFitness) {
+				bestFitness = -newL;
 				xx = x;
-				bestPos = j;
+				yy = y;
 			}
 		}
 	}
-
-	if (bestFitness < gt.fitness)
-	{
-		printf("relocateBlock(Genotype& gt) is wrong\n");
+	if (bestFitness < gt.fitness) {
+		printf("blockExchange(Genotype& gt) is wrong\n");
 		exit(1);
 	}
-
-	if (bestFitness > gt.fitness)
-	{
-		xl = pos[xx], xr = pos[other[xx]];
-		n = 0;
-		T2[0] = 0;
-		++n;
-		memcpy(T2 + n, vt + 1, (xl - 1) * sizeof(int));
-		n += xl - 1;
-		memcpy(T2 + n, vt + xr + 1, (gt.num * 2 - xr) * sizeof(int));
-		n += gt.num * 2 - xr;
-		T2[n++] = size + 1;
-		
+	if (bestFitness > gt.fitness) {
 		gt.fitness = bestFitness;
-		memcpy(gt.gene + m, T2 + 1, bestPos * sizeof(int));
-		m += bestPos;
-		memcpy(gt.gene + m, vt + xl, (xr - xl + 1) * sizeof(int));
-		m += (xr - xl + 1);
-		memcpy(gt.gene + m, T2 + bestPos + 1, (n - 2 - bestPos) * sizeof(int));
-		m += (n - 2 - bestPos);
+		xl = pos[xx];
+		xr = pos[other[xx]];
+		yl = pos[yy];
+		yr = pos[other[yy]];
+		if (xl > yl) {
+			swap(xl, yl);
+			swap(xr, yr);
+		}
+		memcpy(gt.gene + n, vt + 1, (xl - 1) * sizeof(int)), n += xl - 1;
+		memcpy(gt.gene + n, vt + yl, (yr - yl + 1) * sizeof(int)), n += yr - yl + 1;
+		memcpy(gt.gene + n, vt + xr + 1, (yl - xr - 1) * sizeof(int)), n += yl - xr - 1;
+		memcpy(gt.gene + n, vt + xl, (xr - xl + 1) * sizeof(int)), n += xr - xl + 1;
+		memcpy(gt.gene + n, vt + yr + 1, (size - yr) * sizeof(int));
 		return true;
 	}
-
 	return false;
 }
 
@@ -555,15 +672,18 @@ int main(int argc, char *argv[])
 
 	best = 0;
 
-	for (i = 0; i < MAX_VEHICLE; ++i)
-	{
-		relocateBlock(src[i]);
-	}
+// 	for (i = 0; i < MAX_VEHICLE; ++i)
+// 	{
+// 		relocateBlock(src[i]);
+// 	}
+
+// 	relocateBlockOnDiffTrees(src);
 
 // 	if (checkAllCapacity(src) == true)
 // 	{
 // 		printf("True\n");
 // 	}
+
 	printAnswer(src);
 	best = -calcTotalFitness(src);
 
