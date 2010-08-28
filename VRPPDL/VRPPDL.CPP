@@ -554,57 +554,78 @@ bool blockExchange(Genotype& gt) {
 	{
 		pos[vt[i]] = i;
 	}
-	for (i = 0; i < gt.num * 2; ++i) {
-		x = vertexP[i];
-		for (j = i + 1; j < nVertexP; ++j) {
+	for (i = 0; i < gt.num * 2; ++i)
+	{
+		x = gt.gene[i];
+		if (!isVertexP[x])
+		{
+			continue;
+		}
+		for (j = i + 1; j < gt.num * 2; ++j)
+		{
 			y = vertexP[j];
+			if (!isVertexP[y])
+			{
+				continue;
+			}
 			yl = pos[y];
-			yr = pos[other[y]];	
+			yr = pos[other[y]];
 			xl = pos[x];
 			xr = pos[other[x]];
 			if ((xl < yl && yr < xr) ||
-				(yl < xl && xr < yr)) continue;
-			if (xl > yl) {
+				(yl < xl && xr < yr))
+			{
+				continue;
+			}
+			if (xl > yl)
+			{
 				swap(xl, yl);
 				swap(xr, yr);
 			}
-			if (xr + 1 == yl) {
+			if (xr + 1 == yl)
+			{
 				newL = -gt.fitness
-					- dis[vt[xl - 1]][vt[xl]]
-					+ dis[vt[xl - 1]][vt[yl]]
-					- dis[vt[yr]][vt[yr + 1]]
-					+ dis[vt[xr]][vt[yr + 1]]
-					- dis[vt[xr]][vt[yl]]
-					+ dis[vt[yr]][vt[xl]];
-			} else {
-				newL = -gt.fitness
-					- dis[vt[xl - 1]][vt[xl]]
-					+ dis[vt[xl - 1]][vt[yl]]
-					- dis[vt[yr]][vt[yr + 1]]
-					+ dis[vt[xr]][vt[yr + 1]]
-					- dis[vt[xr]][vt[xr + 1]]
-					+ dis[vt[yr]][vt[xr + 1]]
-					- dis[vt[yl - 1]][vt[yl]]
-					+ dis[vt[yl - 1]][vt[xl]];
+					   - dis[vt[xl - 1]][vt[xl]]
+					   + dis[vt[xl - 1]][vt[yl]]
+					   - dis[vt[yr]][vt[yr + 1]]
+					   + dis[vt[xr]][vt[yr + 1]]
+					   - dis[vt[xr]][vt[yl]]
+					   + dis[vt[yr]][vt[xl]];
 			}
-			if (-newL > bestFitness) {
+			else
+			{
+				newL = -gt.fitness
+					   - dis[vt[xl - 1]][vt[xl]]
+					   + dis[vt[xl - 1]][vt[yl]]
+					   - dis[vt[yr]][vt[yr + 1]]
+					   + dis[vt[xr]][vt[yr + 1]]
+					   - dis[vt[xr]][vt[xr + 1]]
+					   + dis[vt[yr]][vt[xr + 1]]
+					   - dis[vt[yl - 1]][vt[yl]]
+					   + dis[vt[yl - 1]][vt[xl]];
+			}
+			if (-newL > bestFitness)
+			{
 				bestFitness = -newL;
 				xx = x;
 				yy = y;
 			}
 		}
 	}
-	if (bestFitness < gt.fitness) {
+	if (bestFitness < gt.fitness)
+	{
 		printf("blockExchange(Genotype& gt) is wrong\n");
 		exit(1);
 	}
-	if (bestFitness > gt.fitness) {
+	if (bestFitness > gt.fitness)
+	{
 		gt.fitness = bestFitness;
 		xl = pos[xx];
 		xr = pos[other[xx]];
 		yl = pos[yy];
 		yr = pos[other[yy]];
-		if (xl > yl) {
+		if (xl > yl)
+		{
 			swap(xl, yl);
 			swap(xr, yr);
 		}
@@ -664,6 +685,7 @@ int main(int argc, char *argv[])
 	readMatching(argv[2]);
 
 	getStartingTour(argc == 4 ? argv[3] : NULL);
+	printAnswer(src);
 // 	printAnswer(src);
 // 	if (checkAllCapacity(src) == true)
 // 	{
@@ -676,6 +698,11 @@ int main(int argc, char *argv[])
 // 	{
 // 		relocateBlock(src[i]);
 // 	}
+
+	for (i = 0; i < MAX_VEHICLE; ++i)
+	{
+		blockExchange(src[i]);
+	}
 
 // 	relocateBlockOnDiffTrees(src);
 
