@@ -514,7 +514,8 @@ bool relocateBlockOnDiffTrees(Genotype gt[])
 					}
 					originFitness = calcFitness(gt[i]) + calcFitness(gt[j]);
 					curFitness = fitness - originFitness;
-					if (curFitness > bestFitness)
+					if (curFitness > bestFitness && checkCapacity(tempGeno[0])
+						                         && checkCapacity(tempGeno[1]))
 					{
 						bestFitness = curFitness;
 						tempGeno[0] = tempFirst;
@@ -548,7 +549,9 @@ bool blockExchange(Genotype& gt) {
 	int vt[MAXN], pos[MAXN];
 	int i, j, n = 0, xx, yy, bestFitness = gt.fitness;
 	int newL, x, y, xl, xr, yl, yr;
-	
+	Genotype temp;
+	Genotype best;
+
 	vt[0] = 0, vt[gt.num * 2 + 1] = size + 1;
 	memcpy(vt + 1, gt.gene, gt.num * 2 * sizeof(int));
 	for (i = 0; i <= gt.num * 2 + 1; ++i)
@@ -585,7 +588,7 @@ bool blockExchange(Genotype& gt) {
 			}
 			if (xr + 1 == yl)
 			{
-				newL = -gt.fitness
+				newL = - gt.fitness
 					   - dis[vt[xl - 1]][vt[xl]]
 					   + dis[vt[xl - 1]][vt[yl]]
 					   - dis[vt[yr]][vt[yr + 1]]
@@ -595,7 +598,7 @@ bool blockExchange(Genotype& gt) {
 			}
 			else
 			{
-				newL = -gt.fitness
+				newL = - gt.fitness
 					   - dis[vt[xl - 1]][vt[xl]]
 					   + dis[vt[xl - 1]][vt[yl]]
 					   - dis[vt[yr]][vt[yr + 1]]
@@ -605,11 +608,22 @@ bool blockExchange(Genotype& gt) {
 					   - dis[vt[yl - 1]][vt[yl]]
 					   + dis[vt[yl - 1]][vt[xl]];
 			}
-			if (-newL > bestFitness)
+			n = 0;
+			memcpy(temp.gene + n, vt + 1, (xl - 1) * sizeof(int));
+			n += xl - 1;
+			memcpy(temp.gene + n, vt + yl, (yr - yl + 1) * sizeof(int));
+			n += yr - yl + 1;
+			memcpy(temp.gene + n, vt + xr + 1, (yl - xr - 1) * sizeof(int));
+			n += yl - xr - 1;
+			memcpy(temp.gene + n, vt + xl, (xr - xl + 1) * sizeof(int));
+			n += xr - xl + 1;
+			memcpy(temp.gene + n, vt + yr + 1, (size - yr) * sizeof(int));
+			temp.num = gt.num;
+			temp.fitness = calcFitness(temp);
+			if (-newL > bestFitness && checkCapacity(temp))
 			{
 				bestFitness = -newL;
-				xx = x;
-				yy = y;
+				best = temp;
 			}
 		}
 	}
@@ -620,21 +634,7 @@ bool blockExchange(Genotype& gt) {
 	}
 	if (bestFitness > gt.fitness)
 	{
-		gt.fitness = bestFitness;
-		xl = pos[xx];
-		xr = pos[other[xx]];
-		yl = pos[yy];
-		yr = pos[other[yy]];
-		if (xl > yl)
-		{
-			swap(xl, yl);
-			swap(xr, yr);
-		}
-		memcpy(gt.gene + n, vt + 1, (xl - 1) * sizeof(int)), n += xl - 1;
-		memcpy(gt.gene + n, vt + yl, (yr - yl + 1) * sizeof(int)), n += yr - yl + 1;
-		memcpy(gt.gene + n, vt + xr + 1, (yl - xr - 1) * sizeof(int)), n += yl - xr - 1;
-		memcpy(gt.gene + n, vt + xl, (xr - xl + 1) * sizeof(int)), n += xr - xl + 1;
-		memcpy(gt.gene + n, vt + yr + 1, (size - yr) * sizeof(int));
+		gt = best;
 		return true;
 	}
 	return false;
@@ -704,13 +704,34 @@ bool blockExchangeOnDiffTrees(Genotype gt[]) {
 						   - dis[vtSecond[yl - 1]][vtSecond[yl]]
 						   + dis[vtSecond[yl - 1]][vtFirst[xl]];
 					curFitness = -newL - originFitness;
+
+					n = 0;
+					memcpy(tempGeno[0].gene + n, vtFirst + 1, (xl - 1) * sizeof(int));
+					n += xl - 1;
+					memcpy(tempGeno[0].gene + n, vtSecond + yl, (yr - yl + 1) * sizeof(int));
+					n += yr - yl + 1;
+					memcpy(tempGeno[0].gene + n, vtFirst + xr + 1, (gt[i].num * 2 - xr) * sizeof(int));
+					n += gt[i].num * 2 - xr;
+					tempGeno[0].num = (n + 1) / 2;
+					tempGeno[0].fitness = calcFitness(tempGeno[0]);
+
+					n = 0;
+					memcpy(tempGeno[1].gene + n, vtSecond + 1, (yl - 1) * sizeof(int));
+					n += yl - 1;
+					memcpy(tempGeno[1].gene + n, vtFirst + xl, (xr - xl + 1) * sizeof(int));
+					n += xr - xl + 1;
+					memcpy(tempGeno[1].gene + n, vtSecond + yr + 1, (gt[j].num * 2 - yr) * sizeof(int));
+					n += gt[j].num * 2 - yr;
+					tempGeno[1].num = (n + 1) / 2;
+					tempGeno[1].fitness = calcFitness(tempGeno[1]);
+
 					if (curFitness > bestFitness)
 					{
 						bestFitness = curFitness;
 						bestI = i;
 						bestJ = j;
-						xx = x;
-						yy = y;
+						tempFirst = tempGeno[0];
+						tempSecond = tempGeno[1];
 					}
 				}
 			}
@@ -723,47 +744,249 @@ bool blockExchangeOnDiffTrees(Genotype gt[]) {
 	}
 	if (bestFitness > 0)
 	{
-		vtFirst[0] = 0, vtFirst[gt[bestI].num * 2 + 1] = size + 1;
-		memcpy(vtFirst + 1, gt[bestI].gene, gt[bestI].num * 2 * sizeof(int));
-		vtSecond[0] = 0, vtSecond[gt[bestJ].num * 2 + 1] = size + 1;
-		memcpy(vtSecond + 1, gt[bestJ].gene, gt[bestJ].num * 2 * sizeof(int));
+		gt[bestI] = tempFirst;
+		gt[bestJ] = tempSecond;
+		return true;
+	}
+	return false;
+}
+
+// couple-exchange operator  O(N^2)
+bool coupleIntraExchange(Genotype& gt) {
+	int vt[MAXN], pos[MAXN];
+	int i, j, bestFitness = gt.fitness, newL;
+	int x, y, xl, xr, yl, yr, xl2, xr2, yl2, yr2;
+	
+	vt[0] = 0, vt[gt.num * 2 + 1] = size + 1;
+	memcpy(vt + 1, gt.gene, size * sizeof(int));
+	for (i = 0; i <= gt.num * 2; ++i)
+	{
+		pos[vt[i]] = i;
+	}
+	for (i = 0; i < gt.num * 2; ++i) {
+		x = gt.gene[i];
+		xl = pos[x];
+		xr = pos[other[x]];
+		for (j = i + 1; j < gt.num * 2; ++j) {
+			y = gt.gene[j];
+			yl = pos[y];
+			yr = pos[other[y]];
+			newL = - gt.fitness
+				   - dis[vt[xl - 1]][vt[xl]]
+				   - dis[vt[xl]][vt[xl + 1]]
+				   - dis[vt[xr - 1]][vt[xr]]
+				   - dis[vt[xr]][vt[xr + 1]]
+				   - dis[vt[yl - 1]][vt[yl]]
+				   - dis[vt[yl]][vt[yl + 1]]
+				   - dis[vt[yr - 1]][vt[yr]]
+				   - dis[vt[yr]][vt[yr + 1]]
+				   + (xl + 1 == xr ? dis[vt[xl]][vt[xr]] : 0)
+				   + (yl + 1 == yr ? dis[vt[yl]][vt[yr]] : 0)
+				   + (xr + 1 == yl ? dis[vt[xr]][vt[yl]] : 0)
+				   + (yr + 1 == xl ? dis[vt[yr]][vt[xl]] : 0);
+			swap(vt[xl], vt[yl]);
+			swap(vt[xr], vt[yr]);
+			newL += dis[vt[xl - 1]][vt[xl]]
+				  + dis[vt[xl]][vt[xl + 1]]
+				  + dis[vt[xr - 1]][vt[xr]]
+				  + dis[vt[xr]][vt[xr + 1]]
+				  + dis[vt[yl - 1]][vt[yl]]
+				  + dis[vt[yl]][vt[yl + 1]]
+				  + dis[vt[yr - 1]][vt[yr]]
+				  + dis[vt[yr]][vt[yr + 1]]
+				  - (xl + 1 == xr ? dis[vt[xl]][vt[xr]] : 0)
+				  - (yl + 1 == yr ? dis[vt[yl]][vt[yr]] : 0)
+				  - (xr + 1 == yl ? dis[vt[xr]][vt[yl]] : 0)
+				  - (yr + 1 == xl ? dis[vt[yr]][vt[xl]] : 0);
+			if (-newL > bestFitness && checkCapacity(vt + 1, gt.num * 2))
+			{
+				bestFitness = -newL;
+				xl2 = xl, xr2 = xr, yl2 = yl, yr2 = yr;
+			}
+			swap(vt[xl], vt[yl]);
+			swap(vt[xr], vt[yr]);
+		}
+	}
+	if (bestFitness < gt.fitness) {
+		printf("coupleExchange(Genotype& gt)\n");
+		exit(1);
+	}
+	if (bestFitness > gt.fitness) {
+		gt.fitness = bestFitness;
+		--xl2, --xr2, --yl2, --yr2;
+		swap(gt.gene[xl2], gt.gene[yl2]);
+		swap(gt.gene[xr2], gt.gene[yr2]);
+		return true;
+	}
+	return false;
+}
+
+bool coupleInterExchange(Genotype gt[]) {
+	int vtFirst[MAXN], vtSecond[MAXN];
+	int posFirst[MAXN], posSecond[MAXN];
+	int i, j, k, h;
+	int newL;
+	int x, y, xl, xr, yl, yr, xl2, xr2, yl2, yr2;
+	int originFitness, curFitness;
+	int bestFitness = 0;
+	int bestI, bestJ;
+
+	for (i = 0; i < MAX_VEHICLE; ++i)
+	{
+		vtFirst[0] = 0, vtFirst[gt[i].num * 2 + 1] = size + 1;
+		memcpy(vtFirst + 1, gt[i].gene, gt[i].num * 2 * sizeof(int));
 		for (k = 0; k <= gt[i].num * 2 + 1; ++k)
 		{
 			posFirst[vtFirst[k]] = k;
 		}
-		for (k = 0; k <= gt[j].num * 2 + 1; ++k)
+		for (h = 0; h < gt[i].num * 2; ++h)
 		{
-			posSecond[vtSecond[k]] = k;
+			x = gt[i].gene[h];
+			if (!isVertexP[x])
+			{
+				continue;
+			}
+			xl = posFirst[x];
+			xr = posFirst[other[x]];
+			for (j = 0; j < MAX_VEHICLE; ++j)
+			{
+				if (i == j)
+				{
+					continue;
+				}
+				vtSecond[0] = 0, vtSecond[gt[j].num * 2 + 1] = size + 1;
+				memcpy(vtSecond + 1, gt[j].gene, gt[j].num * 2 * sizeof(int));
+				for (k = 0; k <= gt[j].num * 2 + 1; ++k)
+				{
+					posSecond[vtSecond[k]] = k;
+				}
+				for (k = 0; k < gt[j].num * 2; ++k)
+				{
+					y = gt[j].gene[h];
+					if (!isVertexP[x])
+					{
+						continue;
+					}
+					yl = posSecond[y];
+					yr = posSecond[other[y]];
+					originFitness = gt[i].fitness + gt[j].fitness;
+					newL = - gt[i].fitness
+						   - gt[j].fitness
+						   - dis[vtFirst[xl - 1]][vtFirst[xl]]
+						   - dis[vtFirst[xl]][vtFirst[xl + 1]]
+						   - dis[vtFirst[xr - 1]][vtFirst[xr]]
+						   - dis[vtFirst[xr]][vtFirst[xr + 1]]
+						   - dis[vtSecond[yl - 1]][vtSecond[yl]]
+						   - dis[vtSecond[yl]][vtSecond[yl + 1]]
+						   - dis[vtSecond[yr - 1]][vtSecond[yr]]
+						   - dis[vtSecond[yr]][vtSecond[yr + 1]];
+					swap(vtFirst[xl], vtSecond[yl]);
+					swap(vtFirst[xr], vtSecond[yr]);
+					newL += dis[vtFirst[xl - 1]][vtFirst[xl]]
+						  + dis[vtFirst[xl]][vtFirst[xl + 1]]
+						  + dis[vtFirst[xr - 1]][vtFirst[xr]]
+						  + dis[vtFirst[xr]][vtFirst[xr + 1]]
+						  + dis[vtSecond[yl - 1]][vtSecond[yl]]
+						  + dis[vtSecond[yl]][vtSecond[yl + 1]]
+						  + dis[vtSecond[yr - 1]][vtSecond[yr]]
+						  + dis[vtSecond[yr]][vtSecond[yr + 1]];
+					curFitness = -newL - originFitness;
+					if (curFitness > bestFitness
+					 && checkCapacity(vtFirst + 1, gt[i].num * 2)
+					 && checkCapacity(vtSecond + 1, gt[j].num * 2))
+					{
+						bestFitness = curFitness;
+						bestI = i;
+						bestJ = j;
+						xl2 = xl, xr2 = xr, yl2 = yl, yr2 = yr;
+					}
+					swap(vtFirst[xl], vtSecond[yl]);
+					swap(vtFirst[xr], vtSecond[yr]);
+				}
+			}
 		}
-		xl = posFirst[xx];
-		xr = posFirst[other[xx]];
-		yl = posSecond[yy];
-		yr = posSecond[other[yy]];
-
-		n = 0;
-		memcpy(tempGeno[0].gene + n, vtFirst + 1, (xl - 1) * sizeof(int));
-		n += xl - 1;
-		memcpy(tempGeno[0].gene + n, vtSecond + yl, (yr - yl + 1) * sizeof(int));
-		n += yr - yl + 1;
-		memcpy(tempGeno[0].gene + n, vtFirst + xr + 1, (gt[bestI].num * 2 - xr) * sizeof(int));
-		n += gt[bestI].num * 2 - xr;
-		tempGeno[0].num = (n + 1) / 2;
-		tempGeno[0].fitness = calcFitness(tempGeno[0]);
-
-		n = 0;
-		memcpy(tempGeno[1].gene + n, vtSecond + 1, (yl - 1) * sizeof(int));
-		n += yl - 1;
-		memcpy(tempGeno[1].gene + n, vtFirst + xl, (xr - xl + 1) * sizeof(int));
-		n += xr - xl + 1;
-		memcpy(tempGeno[1].gene + n, vtSecond + yr + 1, (gt[bestJ].num * 2 - yr) * sizeof(int));
-		n += gt[bestJ].num * 2 - yr;
-		tempGeno[1].num = (n + 1) / 2;
-		tempGeno[1].fitness = calcFitness(tempGeno[1]);
-		gt[bestI] = tempGeno[0];
-		gt[bestJ] = tempGeno[1];
+	}
+	if (bestFitness < 0)
+	{
+		printf("coupleExchange(Genotype& gt)\n");
+		exit(1);
+	}
+	if (bestFitness > 0)
+	{
+		--xl2, --xr2, --yl2, --yr2;
+		swap(gt[bestI].gene[xl2], gt[bestJ].gene[yl2]);
+		swap(gt[bestI].gene[xr2], gt[bestJ].gene[yr2]);
+		gt[bestI].fitness = calcFitness(gt[bestI]);
+		gt[bestJ].fitness = calcFitness(gt[bestJ]);
 		return true;
 	}
 	return false;
+}
+
+// relocate-couple operator  O(N^3)
+bool relocateCouple(Genotype& gt) {
+	static int vt[MAXN], pos2[MAXN], T2[MAXN];
+	int i, j, k, length, newL, bestFitness = gt.fitness;
+	int x, xx, lp, rp, n, m = 0;
+	
+	vt[0] = 0, vt[size + 1] = size + 1;
+	memcpy(vt + 1, gt.gene, size * sizeof(int));
+	for (i = 0; i < nVertexP; ++i) {
+		x = vertexP[i];
+		length = 0;
+		n = 0;
+		for (j = 0; j <= size + 1; ++j) {
+			if (vt[j] != x && vt[j] != other[x]) {
+				T2[n++] = vt[j];
+				pos2[T2[n - 1]] = n - 1;
+				if (n > 1) length += dis[T2[n - 2]][T2[n - 1]];
+			}
+		}
+		for (j = 0; j < n - 1; ++j) {
+			newL = length + dis[T2[j]][x] + dis[x][other[x]] + dis[other[x]][T2[j + 1]]
+				- dis[T2[j]][T2[j + 1]];
+			if (-newL > bestFitness) {
+				bestFitness = -newL;
+				xx = x;
+				lp = j;
+				rp = j;
+			}
+			for (k = j + 1; k < n - 1; ++k) {
+				if (isVertexP[T2[k]]) {
+					k = pos2[other[T2[k]]];
+				} else if (pos2[other[T2[k]]] <= j) {
+					break;
+				}
+				newL = length + dis[T2[j]][x] + dis[x][T2[j + 1]]
+					+ dis[T2[k]][other[x]] + dis[other[x]][T2[k + 1]]
+					- dis[T2[j]][T2[j + 1]] - dis[T2[k]][T2[k + 1]];
+				if (-newL > bestFitness) {
+					bestFitness = -newL;
+					xx = x;
+					lp = j;
+					rp = k;
+				}
+			}
+		}
+	}
+	if (bestFitness < gt.fitness) {
+		printf("relocateCouple(Genotype& gt) is wrong\n");
+		exit(1);
+	}
+	if (bestFitness <= gt.fitness) return false;
+	gt.fitness = bestFitness;
+	n = 0;
+	for (i = 0; i <= size + 1; ++i) {
+		if (vt[i] != xx && vt[i] != other[xx]) {
+			T2[n++] = vt[i];
+		}
+	}
+	memcpy(gt.gene + m, T2 + 1, lp * sizeof(int)); m += lp;
+	gt.gene[m++] = xx;
+	memcpy(gt.gene + m, T2 + lp + 1, (rp - lp) * sizeof(int)); m += rp - lp;
+	gt.gene[m++] = other[xx];
+	memcpy(gt.gene + m, T2 + rp + 1, (n - 2 - rp) * sizeof(int)); m += n - 2 - rp;
+	return true;
 }
 
 void printAnswer(Genotype gt[])
@@ -825,10 +1048,15 @@ int main(int argc, char *argv[])
 // 	{
 // 		relocateBlock(src[i]);
 // 	}
-// 
+
 // 	for (i = 0; i < MAX_VEHICLE; ++i)
 // 	{
 // 		blockExchange(src[i]);
+// 	}
+
+// 	for (i = 0; i < MAX_VEHICLE; ++i)
+// 	{
+// 		coupleIntraExchange(src[i]);
 // 	}
 
 // 	relocateBlockOnDiffTrees(src);
@@ -839,6 +1067,8 @@ int main(int argc, char *argv[])
 // 	}
 
 // 	blockExchangeOnDiffTrees(src);
+
+// 	coupleInterExchange(src);
 
 	printAnswer(src);
 	best = -calcTotalFitness(src);
