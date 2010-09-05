@@ -18,7 +18,7 @@ const int MAX_DIMENSION = 100009;   // max. dimension
 const int MAX_OUTER_ITER = 50;      // max. iteration
 const int MAX_INNER_ITER = 15;      // max. no. of no update
 const int INF = 0x3f3f3f3f;         // max. integer
-const int MAX_VEHICLE = 2;          // max. no. of vehicles
+const int MAX_VEHICLE = 3;          // max. no. of vehicles
 const int MAX_CAPACITY = 100;       // max. no. of capacity
 
 char instance[109];                        // the name of the data instance
@@ -109,16 +109,27 @@ void writeMatching(char *file)
 {
 	FILE *fp, *wp;
 	int i, j, x, state, y, px, py;
-	
+	char newFile[100];
+	char *point = file + 6;
+	char *newF = newFile;
+
+	while (*point)
+	{
+		*newF = *point;
+		point++;
+		newF++;
+	}
+	*newF = '\0';
+
 	if ((fp = fopen(file, "r")) == NULL)
 	{
 		printf("ERROR: Can not open input file %s!\n\n", file);
 		exit(1);
 	}
 
-	if ((wp = fopen("test.mtc", "w")) == NULL)
+	if ((wp = fopen(newFile, "w")) == NULL)
 	{
-		printf("ERROR: Can not open input file %s!\n\n", file);
+		printf("ERROR: Can not open input file %s!\n\n", newFile);
 		exit(1);
 	}
 	
@@ -524,7 +535,7 @@ bool relocateInterBlock(Genotype gt[])
 						bestFitness = curFitness;
 						tempGeno[0] = tempFirst;
 						tempGeno[1] = tempSecond;
-						test = calcTotalFitness(tempGeno);
+// 						test = calcTotalFitness(tempGeno);
 						bestFirst = i;
 						bestSecond = j;
 					}
@@ -838,7 +849,8 @@ bool coupleIntraExchange(Genotype& gt)
 	return false;
 }
 
-bool coupleInterExchange(Genotype gt[]) {
+bool coupleInterExchange(Genotype gt[])
+{
 	int vtFirst[MAXN], vtSecond[MAXN];
 	int posFirst[MAXN], posSecond[MAXN];
 	int i, j, k, h;
@@ -896,7 +908,9 @@ bool coupleInterExchange(Genotype gt[]) {
 						   - dis[vtSecond[yl - 1]][vtSecond[yl]]
 						   - dis[vtSecond[yl]][vtSecond[yl + 1]]
 						   - dis[vtSecond[yr - 1]][vtSecond[yr]]
-						   - dis[vtSecond[yr]][vtSecond[yr + 1]];
+						   - dis[vtSecond[yr]][vtSecond[yr + 1]]
+						   + (xl + 1 == xr ? dis[vtFirst[xl]][vtFirst[xr]] : 0)
+						   + (yl + 1 == yr ? dis[vtSecond[yl]][vtSecond[yr]] : 0);
 					swap(vtFirst[xl], vtSecond[yl]);
 					swap(vtFirst[xr], vtSecond[yr]);
 					newL += dis[vtFirst[xl - 1]][vtFirst[xl]]
@@ -906,7 +920,9 @@ bool coupleInterExchange(Genotype gt[]) {
 						  + dis[vtSecond[yl - 1]][vtSecond[yl]]
 						  + dis[vtSecond[yl]][vtSecond[yl + 1]]
 						  + dis[vtSecond[yr - 1]][vtSecond[yr]]
-						  + dis[vtSecond[yr]][vtSecond[yr + 1]];
+						  + dis[vtSecond[yr]][vtSecond[yr + 1]]
+						  - (xl + 1 == xr ? dis[vtFirst[xl]][vtFirst[xr]] : 0)
+						  - (yl + 1 == yr ? dis[vtSecond[yl]][vtSecond[yr]] : 0);
 					curFitness = -newL - originFitness;
 					if (curFitness > bestFitness
 					 && checkCapacity(vtFirst + 1, gt[i].num * 2)
@@ -1328,22 +1344,22 @@ void printAnswer(Genotype gt[])
 	for (i = 0; i < MAX_VEHICLE; ++i)
 	{
 		curCap = 0;
-		printf("Vehicle %d\n", i);
-		printf("No. 0+\t\tCapcity: 0\n");
+// 		printf("Vehicle %d\n", i);
+// 		printf("No. 0+\t\tCapcity: 0\n");
 		for (j = 0; j < gt[i].num * 2; ++j)
 		{
 			curCap += demand[gt[i].gene[j]];
 			if ( isVertexP[gt[i].gene[j]])
 			{
-				printf("No. %d+\t\tCapcity: %d\n", gt[i].gene[j], curCap);
+// 				printf("No. %d+\t\tCapcity: %d\n", gt[i].gene[j], curCap);
 			}
 			else
 			{
-				printf("No. %d-\t\tCapcity: %d\n", other[gt[i].gene[j]], curCap);
+// 				printf("No. %d-\t\tCapcity: %d\n", other[gt[i].gene[j]], curCap);
 			}
 		}
-		printf("No. 0-\t\tCapcity: 0\n");
-		printf("\n");
+// 		printf("No. 0-\t\tCapcity: 0\n");
+// 		printf("\n");
 	}
 	
 	printf("Total Cost: %d\n", -calcTotalFitness(gt));
@@ -1356,41 +1372,49 @@ void localSearch(Genotype gt[]) {
 		if (coupleInterExchange(gt))
 		{
 			printAnswer(gt);
+			printf("coupleInterExchange\n");
 			continue;
 		}
 		if (coupleIntraExchangeOnAllTrees(gt))
 		{
 			printAnswer(gt);
+			printf("coupleIntraExchangeOnAllTrees\n");
 			continue;
 		}
 		if (blockInterExchange(gt))
 		{
 			printAnswer(gt);
+			printf("blockInterExchange\n");
 			continue;
 		}
 		if (blockIntraExchangeOnAllTrees(gt))
 		{
 			printAnswer(gt);
+			printf("blockIntraExchangeOnAllTrees\n");
 			continue;
 		}
 		if (relocateInterBlock(gt))
 		{
 			printAnswer(gt);
+			printf("relocateInterBlock\n");
 			continue;
 		}
 		if (relocateIntraBlocksOnAllTrees(gt))
 		{
 			printAnswer(gt);
+			printf("relocateIntraBlocksOnAllTrees\n");
 			continue;
 		}
 		if (relocateInterCouple(gt))
 		{
 			printAnswer(gt);
+			printf("relocateInterCouple\n");
 			continue;
 		}
 		if (relocateIntraCouplesOnAllTrees(gt))
 		{
 			printAnswer(gt);
+			printf("relocateIntraCouplesOnAllTrees\n");
 			continue;
 		}
 		break;
@@ -1410,6 +1434,13 @@ int main(int argc, char *argv[])
 	int i, j, k = 0, mem, best = INF, startTime = clock();
 	readCoordinate(argv[1]);
 	readMatching(argv[2]);
+
+// 	writeMatching("match_brd14051_51.mtc");
+// 	writeMatching("match_brd14051_251.mtc");
+// 	writeMatching("match_brd14051_501.mtc");
+// 	writeMatching("match_brd14051_751.mtc");
+// 	writeMatching("match_brd14051_101.mtc");
+
 
 	getStartingTour(argc == 4 ? argv[3] : NULL);
 	printAnswer(src);
@@ -1472,7 +1503,8 @@ int main(int argc, char *argv[])
 // 	printAnswer(src);
 
 	localSearch(src);
-	printAnswer(src);
+
+// 	printAnswer(src);
 	best = -calcTotalFitness(src);
 
 
