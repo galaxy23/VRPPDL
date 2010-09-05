@@ -204,6 +204,10 @@ void readMatching(char *file)
 int calcFitness(const Genotype &gt)
 {
 	int i, fitness = 0;
+	if (gt.num == 0)
+	{
+		return 0;
+	}
 	for (i = 1; i < gt.num * 2; ++i)
 	{
 		fitness += dis[gt.gene[i - 1]][gt.gene[i]];
@@ -337,7 +341,7 @@ bool checkAllCapacity(Genotype gt[])
 }
 
 // relocate-block operator O(N^2)
-bool relocateBlock(Genotype& gt)
+bool relocateIntraBlock(Genotype& gt)
 {
 	int pos[MAXN], vt[MAXN], T2[MAXN];
 	int i, j, n, m = 0, length, fitness;
@@ -423,7 +427,7 @@ bool relocateBlock(Genotype& gt)
 }
 
 // relocate-block operator on different trees O(N^2)
-bool relocateBlockOnDiffTrees(Genotype gt[])
+bool relocateInterBlock(Genotype gt[])
 {
 	int posFirst[MAXN], posSecond[MAXN];
 	int vtFirst[MAXN], vtSecond[MAXN], T2[MAXN], T3[MAXN];
@@ -509,13 +513,13 @@ bool relocateBlockOnDiffTrees(Genotype gt[])
 
 					if (tempSecond.fitness + tempFirst.fitness != fitness)
 					{
-						printf("relocateBlockOnDiffTrees fitness is wrong\n");
+						printf("relocateInterBlock fitness is wrong\n");
  						exit(1);
 					}
 					originFitness = calcFitness(gt[i]) + calcFitness(gt[j]);
 					curFitness = fitness - originFitness;
-					if (curFitness > bestFitness && checkCapacity(tempGeno[0])
-						                         && checkCapacity(tempGeno[1]))
+					if (curFitness > bestFitness && checkCapacity(tempFirst)
+						                         && checkCapacity(tempSecond))
 					{
 						bestFitness = curFitness;
 						tempGeno[0] = tempFirst;
@@ -545,7 +549,7 @@ bool relocateBlockOnDiffTrees(Genotype gt[])
 }
 
 // block-exchange operator  O(N^2)
-bool blockExchange(Genotype& gt)
+bool blockIntraExchange(Genotype& gt)
 {
 	int vt[MAXN], pos[MAXN];
 	int i, j, n = 0, xx, yy, bestFitness = gt.fitness;
@@ -642,7 +646,7 @@ bool blockExchange(Genotype& gt)
 }
 
 // block-exchange operator  O(N^2)
-bool blockExchangeOnDiffTrees(Genotype gt[])
+bool blockInterExchange(Genotype gt[])
 {
 	int vtFirst[MAXN], vtSecond[MAXN];
 	int posFirst[MAXN], posSecond[MAXN];
@@ -727,7 +731,8 @@ bool blockExchangeOnDiffTrees(Genotype gt[])
 					tempGeno[1].num = (n + 1) / 2;
 					tempGeno[1].fitness = calcFitness(tempGeno[1]);
 
-					if (curFitness > bestFitness)
+					if (curFitness > bestFitness && checkCapacity(tempGeno[0])
+						                         && checkCapacity(tempGeno[1]))
 					{
 						bestFitness = curFitness;
 						bestI = i;
@@ -760,18 +765,27 @@ bool coupleIntraExchange(Genotype& gt)
 	int i, j, bestFitness = gt.fitness, newL;
 	int x, y, xl, xr, yl, yr, xl2, xr2, yl2, yr2;
 	
-	vt[0] = 0, vt[gt.num * 2 + 1] = size + 1;
-	memcpy(vt + 1, gt.gene, size * sizeof(int));
+	vt[0] = 0;
+	vt[gt.num * 2 + 1] = size + 1;
+	memcpy(vt + 1, gt.gene, gt.num * 2 * sizeof(int));
 	for (i = 0; i <= gt.num * 2; ++i)
 	{
 		pos[vt[i]] = i;
 	}
 	for (i = 0; i < gt.num * 2; ++i) {
 		x = gt.gene[i];
+		if (!isVertexP[x])
+		{
+			continue;
+		}
 		xl = pos[x];
 		xr = pos[other[x]];
 		for (j = i + 1; j < gt.num * 2; ++j) {
 			y = gt.gene[j];
+			if (!isVertexP[y])
+			{
+				continue;
+			}
 			yl = pos[y];
 			yr = pos[other[y]];
 			newL = - gt.fitness
@@ -865,8 +879,8 @@ bool coupleInterExchange(Genotype gt[]) {
 				}
 				for (k = 0; k < gt[j].num * 2; ++k)
 				{
-					y = gt[j].gene[h];
-					if (!isVertexP[x])
+					y = gt[j].gene[k];
+					if (!isVertexP[y])
 					{
 						continue;
 					}
@@ -933,6 +947,8 @@ bool relocateIntraCouple(Genotype& gt)
 	int i, j, k, length, newL, bestFitness = gt.fitness;
 	int x, xx, lp, rp, n, m = 0;
 	
+	Genotype temp;
+
 	vt[0] = 0, vt[gt.num * 2 + 1] = size + 1;
 	memcpy(vt + 1, gt.gene, gt.num * 2 * sizeof(int));
 	for (i = 0; i < gt.num * 2; ++i)
@@ -960,7 +976,18 @@ bool relocateIntraCouple(Genotype& gt)
 				 + dis[x][other[x]]
 				 + dis[other[x]][T2[j + 1]]
 				 - dis[T2[j]][T2[j + 1]];
-			if (-newL > bestFitness)
+			m = 0;
+			memcpy(temp.gene + m, T2 + 1, j * sizeof(int));
+			m += j;
+			temp.gene[m++] = x;
+			memcpy(temp.gene + m, T2 + j + 1, (j - j) * sizeof(int));
+			m += j - j;
+			temp.gene[m++] = other[x];
+			memcpy(temp.gene + m, T2 + j + 1, (n - 2 - j) * sizeof(int));
+			m += n - 2 - j;
+			temp.num = gt.num;
+			temp.fitness = calcFitness(temp);
+			if (-newL > bestFitness && checkCapacity(temp))
 			{
 				bestFitness = -newL;
 				xx = x;
@@ -984,7 +1011,18 @@ bool relocateIntraCouple(Genotype& gt)
 					 + dis[other[x]][T2[k + 1]]
 					 - dis[T2[j]][T2[j + 1]]
 					 - dis[T2[k]][T2[k + 1]];
-				if (-newL > bestFitness)
+				m = 0;
+				memcpy(temp.gene + m, T2 + 1, j * sizeof(int));
+				m += j;
+				temp.gene[m++] = x;
+				memcpy(temp.gene + m, T2 + j + 1, (k - j) * sizeof(int));
+				m += k - j;
+				temp.gene[m++] = other[x];
+				memcpy(temp.gene + m, T2 + k + 1, (n - 2 - k) * sizeof(int));
+				m += n - 2 - k;
+				temp.num = gt.num;
+				temp.fitness = calcFitness(temp);
+				if (-newL > bestFitness && checkCapacity(temp))
 				{
 					bestFitness = -newL;
 					xx = x;
@@ -1012,6 +1050,7 @@ bool relocateIntraCouple(Genotype& gt)
 			T2[n++] = vt[i];
 		}
 	}
+	m = 0;
 	memcpy(gt.gene + m, T2 + 1, lp * sizeof(int));
 	m += lp;
 	gt.gene[m++] = xx;
@@ -1029,7 +1068,7 @@ bool relocateInterCouple(Genotype gt[])
 	int vtFirst[MAXN], vtSecond[MAXN];
 	int posFirst[MAXN], posSecond[MAXN], pos2[MAXN];
 	int T2[MAXN];
-	int i, j, k, h, p;
+	int i, j, k, h, p, q;
 	int length, newFirst, newSecond, bestFitness = 0;
 	int x, xx, lp, rp, n, m = 0;
 	int originFitness, curFitness;
@@ -1085,7 +1124,29 @@ bool relocateInterCouple(Genotype gt[])
 								- dis[vtSecond[k]][vtSecond[k + 1]];
 					newL = newFirst + newSecond;
 					curFitness = -newL - originFitness;
-					if (curFitness > bestFitness)
+					n = 0;
+					for (q = 1; q <= gt[i].num * 2; ++q)
+					{
+						if (vtFirst[q] != x && vtFirst[q] != other[x])
+						{
+							tempGeno[0].gene[n++] = vtFirst[q];
+						}
+					}
+					tempGeno[0].num = gt[i].num - 1;
+					tempGeno[0].fitness = calcFitness(tempGeno[0]);
+					m = 0;
+					memcpy(tempGeno[1].gene + m, vtSecond + 1, k * sizeof(int));
+					m += k;
+					tempGeno[1].gene[m++] = x;
+					memcpy(tempGeno[1].gene + m, vtSecond + k + 1, (k - k) * sizeof(int));
+					m += k - k;
+					tempGeno[1].gene[m++] = other[x];
+					memcpy(tempGeno[1].gene + m, vtSecond + k + 1, (gt[j].num * 2 - k) * sizeof(int));
+					m += gt[j].num * 2 - k;
+					tempGeno[1].num = gt[j].num + 1;
+					tempGeno[1].fitness = calcFitness(tempGeno[1]);
+					if (curFitness > bestFitness && checkCapacity(tempGeno[0])
+						                         && checkCapacity(tempGeno[1]))
 					{
 						bestFitness = curFitness;
 						xx = x;
@@ -1114,7 +1175,29 @@ bool relocateInterCouple(Genotype gt[])
 									- dis[vtSecond[p]][vtSecond[p + 1]];
 						newL = newFirst + newSecond;
 						curFitness = -newL - originFitness;
-						if (curFitness > bestFitness)
+						n = 0;
+						for (q = 1; q <= gt[i].num * 2; ++q)
+						{
+							if (vtFirst[q] != x && vtFirst[q] != other[x])
+							{
+								tempGeno[0].gene[n++] = vtFirst[q];
+							}
+						}
+						tempGeno[0].num = gt[i].num - 1;
+						tempGeno[0].fitness = calcFitness(tempGeno[0]);
+						m = 0;
+						memcpy(tempGeno[1].gene + m, vtSecond + 1, k * sizeof(int));
+						m += k;
+						tempGeno[1].gene[m++] = x;
+						memcpy(tempGeno[1].gene + m, vtSecond + k + 1, (p - k) * sizeof(int));
+						m += p - k;
+						tempGeno[1].gene[m++] = other[x];
+						memcpy(tempGeno[1].gene + m, vtSecond + p + 1, (gt[j].num * 2 - p) * sizeof(int));
+						m += gt[j].num * 2 - p;
+						tempGeno[1].num = gt[j].num + 1;
+						tempGeno[1].fitness = calcFitness(tempGeno[1]);
+						if (curFitness > bestFitness && checkCapacity(tempGeno[0])
+						                             && checkCapacity(tempGeno[1]))
 						{
 							bestFitness = curFitness;
 							xx = x;
@@ -1143,11 +1226,11 @@ bool relocateInterCouple(Genotype gt[])
 	vtSecond[0] = 0, vtSecond[gt[bestJ].num * 2 + 1] = size + 1;
 	memcpy(vtSecond + 1, gt[bestJ].gene, gt[bestJ].num * 2 * sizeof(int));
 	n = 0;
-	for (i = 1; i <= gt[bestI].num * 2; ++i)
+	for (q = 1; q <= gt[bestI].num * 2; ++q)
 	{
-		if (vtFirst[i] != xx && vtFirst[i] != other[xx])
+		if (vtFirst[q] != xx && vtFirst[q] != other[xx])
 		{
-			tempFirst.gene[n++] = vtFirst[i];
+			tempFirst.gene[n++] = vtFirst[q];
 		}
 	}
 	tempFirst.num = gt[bestI].num - 1;
@@ -1168,12 +1251,80 @@ bool relocateInterCouple(Genotype gt[])
 	return true;
 }
 
+bool relocateIntraBlocksOnAllTrees(Genotype gt[])
+{
+	int i;
+	bool result;
+	bool improved = false;
+	
+	for (i = 0; i < MAX_VEHICLE; ++i)
+	{
+		result = relocateIntraBlock(gt[i]);
+		if (result == true)
+		{
+			improved = true;
+		}
+	}
+	return improved;
+}
+
+bool blockIntraExchangeOnAllTrees(Genotype gt[])
+{
+	int i;
+	bool result;
+	bool improved = false;
+	
+	for (i = 0; i < MAX_VEHICLE; ++i)
+	{
+		result = blockIntraExchange(gt[i]);
+		if (result == true)
+		{
+			improved = true;
+		}
+	}
+	return improved;
+}
+
+bool relocateIntraCouplesOnAllTrees(Genotype gt[])
+{
+	int i;
+	bool result;
+	bool improved = false;
+	
+	for (i = 0; i < MAX_VEHICLE; ++i)
+	{
+		result = relocateIntraCouple(gt[i]);
+		if (result == true)
+		{
+			improved = true;
+		}
+	}
+	return improved;
+}
+
+bool coupleIntraExchangeOnAllTrees(Genotype gt[])
+{
+	int i;
+	bool result;
+	bool improved = false;
+	
+	for (i = 0; i < MAX_VEHICLE; ++i)
+	{
+		result = coupleIntraExchange(gt[i]);
+		if (result == true)
+		{
+			improved = true;
+		}
+	}
+	return improved;
+}
+
 void printAnswer(Genotype gt[])
 {
 	int i;
 	int j;
 	int curCap;
-
+	
 	for (i = 0; i < MAX_VEHICLE; ++i)
 	{
 		curCap = 0;
@@ -1194,9 +1345,56 @@ void printAnswer(Genotype gt[])
 		printf("No. 0-\t\tCapcity: 0\n");
 		printf("\n");
 	}
-
+	
 	printf("Total Cost: %d\n", -calcTotalFitness(gt));
 	return;
+}
+
+void localSearch(Genotype gt[]) {
+// 	int start = clock();
+	while (true) {
+		if (coupleInterExchange(gt))
+		{
+			printAnswer(gt);
+			continue;
+		}
+		if (coupleIntraExchangeOnAllTrees(gt))
+		{
+			printAnswer(gt);
+			continue;
+		}
+		if (blockInterExchange(gt))
+		{
+			printAnswer(gt);
+			continue;
+		}
+		if (blockIntraExchangeOnAllTrees(gt))
+		{
+			printAnswer(gt);
+			continue;
+		}
+		if (relocateInterBlock(gt))
+		{
+			printAnswer(gt);
+			continue;
+		}
+		if (relocateIntraBlocksOnAllTrees(gt))
+		{
+			printAnswer(gt);
+			continue;
+		}
+		if (relocateInterCouple(gt))
+		{
+			printAnswer(gt);
+			continue;
+		}
+		if (relocateIntraCouplesOnAllTrees(gt))
+		{
+			printAnswer(gt);
+			continue;
+		}
+		break;
+	}
 }
 
 int main(int argc, char *argv[])
@@ -1230,11 +1428,6 @@ int main(int argc, char *argv[])
 
 // 	for (i = 0; i < MAX_VEHICLE; ++i)
 // 	{
-// 		blockExchange(src[i]);
-// 	}
-
-// 	for (i = 0; i < MAX_VEHICLE; ++i)
-// 	{
 // 		coupleIntraExchange(src[i]);
 // 	}
 
@@ -1254,10 +1447,35 @@ int main(int argc, char *argv[])
 // 		relocateIntraCouple(src[i]);
 // 	}
 
-	relocateInterCouple(src);
+// 	blockInterExchange(src);
+// 	printAnswer(src);
+// 	
+// 	blockIntraExchangeOnAllTrees(src);
+// 	printAnswer(src);
+// 
+// 	relocateInterBlock(src);
+// 	printAnswer(src);
+// 
+// 	relocateIntraBlocksOnAllTrees(src);
+// 	printAnswer(src);
+// 
+// 	relocateIntraCouplesOnAllTrees(src);
+// 	printAnswer(src);
+// 
+// 	relocateInterCouple(src);
+// 	printAnswer(src);
+// 
+// 	coupleInterExchange(src);
+// 	printAnswer(src);
+// 
+// 	coupleIntraExchangeOnAllTrees(src);
+// 	printAnswer(src);
 
+	localSearch(src);
 	printAnswer(src);
 	best = -calcTotalFitness(src);
+
+
 
 	//printf("Problem Name: %s	Dimension: %d	StartingTourCost: %d", instance, size + 1, startingTourCost);
 	//printf("\nTime: %.2f seconds. Cost = %d\n", (clock() - startTime) * 1.0 / (CLOCKS_PER_SEC), best);
